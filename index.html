@@ -16,108 +16,237 @@
 		<script src="vendor/threex/THREEx.WindowResize.js"></script>
 		<script src="vendor/threex.dragpancontrols.js"></script>
 
+		<script src="js/leap.js"></script>
+		<script src="js/catmullrom.js"></script>
+
+
 		<link  href="css/main.css" rel="stylesheet"/>
+
+			<script type="text/javascript">
+		var stats, scene, renderer;
+		var camera, cameraControls;
+
+		function executeThreeJS( data ){
+
+			if( !init() )	animate();
+
+			// init the scene
+			function init(){
+
+				if( Detector.webgl ){
+					renderer = new THREE.WebGLRenderer({
+						antialias		: true,	// to get smoother output
+						preserveDrawingBuffer	: true	// to allow screenshot
+					});
+					renderer.setClearColorHex( 0xBBBBBB, 1 );
+				// uncomment if webgl is required
+				//}else{
+				//	Detector.addGetWebGLMessage();
+				//	return true;
+				}else{
+					renderer	= new THREE.CanvasRenderer();
+				}
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.getElementById('container').appendChild(renderer.domElement);
+
+				// add Stats.js - https://github.com/mrdoob/stats.js
+				stats = new Stats();
+				stats.domElement.style.position	= 'absolute';
+				stats.domElement.style.bottom	= '0px';
+				document.body.appendChild( stats.domElement );
+
+				// create a scene
+				scene = new THREE.Scene();
+
+				// put a camera in the scene
+				camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 10000 );
+				camera.position.set(0, 0, 5);
+				scene.add(camera);
+
+				// create a camera contol
+				cameraControls	= new THREEx.DragPanControls(camera)
+
+				// transparently support window resize
+				THREEx.WindowResize.bind(renderer, camera);
+				// allow 'p' to make screenshot
+				THREEx.Screenshot.bindKey(renderer);
+				// allow 'f' to go fullscreen where this feature is supported
+				if( THREEx.FullScreen.available() ){
+					THREEx.FullScreen.bindKey();		
+					document.getElementById('inlineDoc').innerHTML	+= "- <i>f</i> for fullscreen";
+				}
+
+				
+				// here you add your objects
+				// - you will most likely replace this part by your own
+				for (var i = data.length-1; i >= 0; i--) {
+					var radius = (ctx.canvas.width/2) - data[i][0];
+					radius /= 200;
+					 geometry	= new THREE.TorusGeometry( radius, 0.01 );
+					
+				var material	= new THREE.MeshNormalMaterial();
+				var mesh	= new THREE.Mesh( geometry, material);
+				mesh.rotation.x = 360;
+				mesh.position.y =  (0.01*(i - data.length/2));
+				scene.add( mesh );
+				};
+				/*
+				var sphere = new THREE.Mesh( new THREE.SphereGeometry(100,16,12),new THREE.MeshLambertMaterial( { color: 0x2D303D, wireframe: true, shading: THREE.FlatShading } ));
+                var cylinder = new THREE.Mesh(new THREE.CylinderGeometry(100, 100, 200, 16, 4, false ),new THREE.MeshLambertMaterial( { color: 0x2D303D, wireframe: true, shading: THREE.FlatShading } ));
+                cylinder.position.y = -100;
+                scene.add(sphere);
+                scene.add(cylinder);
+				*/
+			}
+
+			// animation loop
+			function animate() {
+
+				// loop on request animation loop
+				// - it has to be at the begining of the function
+				// - see details at http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
+				requestAnimationFrame( animate );
+
+				// do the render
+				render();
+
+				// update stats
+				stats.update();
+			}
+
+			// render the scene
+			function render() {
+
+				// update camera controls
+				cameraControls.update();
+
+				// actually render the scene
+				renderer.render( scene, camera );
+			}
+		
+		}
+
+	</script>
+
+	<script type="text/javascript">
+	// this is the script for interfacing with Leap and get Input Data to Three.js
+
+	var imageData;
+    var ctx;
+    var mode = 0;
+    var data = [];
+    const NORMAL = 0;
+    const RECORD = 1;
+	
+    window.onload = function()
+    {
+      var c = document.getElementById("layer1");
+
+      ctx = c.getContext("2d");
+      ctx.canvas.width = window.innerWidth;
+      ctx.canvas.height = window.innerHeight;
+      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      imageData = ctx.createImageData(ctx.canvas.width, ctx.canvas.height);
+      // c.parentNode.removeChild(c);
+      // executeThreeJS();
+    }
+
+    document.onkeydown = function() {
+       var KeyID = event.keyCode;
+      if(KeyID == 76){
+        mode = RECORD;
+      }
+    }
+
+     document.onkeyup = function() {
+      mode = NORMAL;
+      if(event.keyCode == 76){
+      	executeThreeJS(data);
+      	// CatmullRom.revolve(data, function(result)
+      	// {
+      	// 	var c = document.getElementById("layer1");
+      	// 	c.parentNode.removeChild(c);
+      	// 	//console.log(result);
+      	// 	 executeThreeJS(result);
+      		
+      	// });
+      }
+    }
+    </script>
+ <script type="text/javascript">
+    var xmax = 0;
+    var xmin = Infinity;
+    var ymax = 0;
+    var ymin = Infinity;
+
+    var last_val = [0,0];
+
+      function moveFinger( posX, posY, posZ, dirX, dirY, dirZ) {
+
+        var can_x = posX + ctx.canvas.width/2;
+        var can_y = ctx.canvas.height - posY;
+          if(last_val[0] == can_x && last_val[1] == can_y) return;
+           ctx.fillStyle = "#000000";
+           ctx.fillRect(can_x,can_y, 1, 1);
+          if(mode == RECORD){
+            data.push([can_x,can_y]);
+            ctx.beginPath();
+            ctx.moveTo( data[0][0], data[0][1] );
+            for (var i = 1; i < data.length-2; i++) {
+                ctx.lineTo(  data[i][0], data[i][1] );
+            }
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo( ctx.canvas.width - data[0][0], data[0][1] );
+            for(var i = 1; i < data.length-2; i++){
+              ctx.lineTo( ctx.canvas.width-data[i][0], data[i][1]);
+            }
+            ctx.lineWidth =1;
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+          }else{
+            var default_cl = [0, 0, 0];
+          }
+          last_val = [ can_x, can_y];
+      }
+
+     
+      var fingers = {};
+      Leap.loop(function(frame) {
+
+        var finger = frame.pointables[0];
+        if(!finger) return;
+        var posX = finger.tipPosition.x;
+        var posY = finger.tipPosition.y;
+        var posZ = (finger.tipPosition.y*3) - 400;
+        var dirX = -(finger.direction.y*90);
+        var dirY = -(finger.direction.z*90);
+        var dirZ = (finger.direction.x*90);
+        
+            
+        moveFinger( posX, posY, posZ, dirX, dirY, dirZ);
+   
+      });
+
+    </script>
+
 	</head>
 <body>
 	<!-- three.js container -->
     	<div id="container"></div>
+    <!-- leap motion input container -->
+    <canvas class="canvas" id="layer1"></canvas>
+    
 	<!-- info on screen display -->
 	<div id="info">
-		<div class="top">
-			<a href="http://learningthreejs.com/blog/2011/12/20/boilerplate-for-three-js/" target="_blank">LearningThree.js</a>
-			boiler plate for
-			<a href="https://github.com/mrdoob/three.js/" target="_blank">three.js</a>
-		</div>
 		<div class="bottom" id="inlineDoc" >
 			- <i>p</i> for screenshot
 		</div> 
 	</div> 
 
-	<script type="text/javascript">
-		var stats, scene, renderer;
-		var camera, cameraControls;
 
-
-		if( !init() )	animate();
-
-		// init the scene
-		function init(){
-
-			if( Detector.webgl ){
-				renderer = new THREE.WebGLRenderer({
-					antialias		: true,	// to get smoother output
-					preserveDrawingBuffer	: true	// to allow screenshot
-				});
-				renderer.setClearColorHex( 0xBBBBBB, 1 );
-			// uncomment if webgl is required
-			//}else{
-			//	Detector.addGetWebGLMessage();
-			//	return true;
-			}else{
-				renderer	= new THREE.CanvasRenderer();
-			}
-			renderer.setSize( window.innerWidth, window.innerHeight );
-			document.getElementById('container').appendChild(renderer.domElement);
-
-			// add Stats.js - https://github.com/mrdoob/stats.js
-			stats = new Stats();
-			stats.domElement.style.position	= 'absolute';
-			stats.domElement.style.bottom	= '0px';
-			document.body.appendChild( stats.domElement );
-
-			// create a scene
-			scene = new THREE.Scene();
-
-			// put a camera in the scene
-			camera = new THREE.PerspectiveCamera(35, window.innerWidth / window.innerHeight, 1, 10000 );
-			camera.position.set(0, 0, 5);
-			scene.add(camera);
-
-			// create a camera contol
-			cameraControls	= new THREEx.DragPanControls(camera)
-
-			// transparently support window resize
-			THREEx.WindowResize.bind(renderer, camera);
-			// allow 'p' to make screenshot
-			THREEx.Screenshot.bindKey(renderer);
-			// allow 'f' to go fullscreen where this feature is supported
-			if( THREEx.FullScreen.available() ){
-				THREEx.FullScreen.bindKey();		
-				document.getElementById('inlineDoc').innerHTML	+= "- <i>f</i> for fullscreen";
-			}
-
-			// here you add your objects
-			// - you will most likely replace this part by your own
-			var geometry	= new THREE.TorusGeometry( 1, 0.42 );
-			var material	= new THREE.MeshNormalMaterial();
-			var mesh	= new THREE.Mesh( geometry, material );
-			scene.add( mesh );
-		}
-
-		// animation loop
-		function animate() {
-
-			// loop on request animation loop
-			// - it has to be at the begining of the function
-			// - see details at http://my.opera.com/emoller/blog/2011/12/20/requestanimationframe-for-smart-er-animating
-			requestAnimationFrame( animate );
-
-			// do the render
-			render();
-
-			// update stats
-			stats.update();
-		}
-
-		// render the scene
-		function render() {
-
-			// update camera controls
-			cameraControls.update();
-
-			// actually render the scene
-			renderer.render( scene, camera );
-		}
-	</script>
 </body>
 </html>

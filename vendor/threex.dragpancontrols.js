@@ -21,10 +21,12 @@ THREEx.DragPanControls	= function(object, domElement)
 	this._$onMouseMove	= function(){ _this._onMouseMove.apply(_this, arguments); };
 	this._$onTouchStart	= function(){ _this._onTouchStart.apply(_this, arguments); };
 	this._$onTouchMove	= function(){ _this._onTouchMove.apply(_this, arguments); };
+	this._$onLeapMove = function(){ _this._onLeapMove.apply(_this, arguments); };
 
 	this._domElement.addEventListener( 'mousemove', this._$onMouseMove, false );
 	this._domElement.addEventListener( 'touchstart', this._$onTouchStart,false );
 	this._domElement.addEventListener( 'touchmove', this._$onTouchMove, false );
+	this._domElement.addEventListener( 'leapmove', this._$onLeapMove, false );
 }
 
 THREEx.DragPanControls.prototype.destroy	= function()
@@ -43,6 +45,7 @@ THREEx.DragPanControls.prototype.update	= function(event)
 
 THREEx.DragPanControls.prototype._onMouseMove	= function(event)
 {
+	//console.log( event.clientX + ", " + event.clientY );
 	this._mouseX	= ( event.clientX / window.innerWidth ) - 0.5;
 	this._mouseY	= ( event.clientY / window.innerHeight) - 0.5;
 }
@@ -65,5 +68,12 @@ THREEx.DragPanControls.prototype._onTouchMove	= function(event)
 
 	this._mouseX	= ( event.touches[ 0 ].pageX / window.innerWidth ) - 0.5;
 	this._mouseY	= ( event.touches[ 0 ].pageY / window.innerHeight) - 0.5;
+}
+
+THREEx.DragPanControls.prototype._onLeapMove = function  (event) {
+	//console.log( event.detail.posX + ", " + event.detail.posY );
+	
+	this._mouseX = (event.detail.posX / window.innerWidth );
+	this._mouseY = (event.detail.posY / window.innerHeight ) * (-1);
 }
 
